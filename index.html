@@ -86,7 +86,7 @@ nav {
  transform: translateX(-220px); transition: transform 0.25s ease, box-shadow 0.25s ease;
  z-index: 150;
 }
-nav:hover, nav.nav-open {
+nav.nav-open, nav.open, nav:hover {
  transform: translateX(0); box-shadow: 4px 0 20px rgba(44,36,22,0.08);
 }
 .nav-hover-strip {
@@ -144,11 +144,23 @@ nav:hover, nav.nav-open {
 }
 .nav-flyout-option:hover { background: var(--linen); color: var(--ink); }
 .nav-hamburger {
- display: none; position: fixed; bottom: 20px; left: 20px; z-index: 300;
- width: 48px; height: 48px; border-radius: 50%; border: none;
- background: var(--ink); color: var(--parchment); font-size: 1.2rem;
- cursor: pointer; box-shadow: 0 4px 16px rgba(44,36,22,0.2);
+ position: fixed; bottom: 20px; left: 20px; z-index: 300;
+ width: 40px; height: 40px; border-radius: 50%;
+ border: 1px solid var(--border-soft);
+ background: rgba(253,248,243,0.6);
+ backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+ color: var(--ink-muted); font-size: 1.15rem;
+ cursor: pointer; display: flex; align-items: center; justify-content: center;
+ -webkit-tap-highlight-color: transparent;
+ transition: all 0.2s; padding: 0;
+ box-shadow: 0 1px 6px rgba(44,36,22,0.06);
 }
+.nav-hamburger:hover { color: var(--ink); border-color: var(--border); }
+.nav-hamburger:active { color: var(--terra); border-color: var(--terra); }
+
+/* Mobile menu circle button - no longer used */
+.mobile-menu-btn { display: none; }
+.mobile-menu-row { display: none; }
 .nav-overlay { display: none; position: fixed; inset: 0; background: rgba(44,36,22,0.3); z-index: 250; }
 
 /* ── VIEWS ── */
@@ -309,25 +321,127 @@ nav:hover, nav.nav-open {
 .view-inner { max-width: 100%; margin: 0 auto; padding: 40px; }
 
 
-/* ── MOBILE ── */
-@media (max-width: 768px) {
+/* ── MOBILE & TABLET ── */
+@media (max-width: 1024px) {
  .app-layout { display: block; }
+ .nav-hover-strip { display: none; }
  nav {
   position: fixed; left: -260px; top: 0; bottom: 0; width: 250px;
   z-index: 280; transition: left 0.25s ease; padding-top: 24px;
   height: 100vh; box-shadow: none;
+  transform: none !important;
  }
- nav.open { left: 0; box-shadow: 4px 0 20px rgba(44,36,22,0.15); }
- .nav-hamburger { display: flex; align-items: center; justify-content: center; }
+ nav:hover { transform: none !important; box-shadow: none; }
+ nav.open { left: 0 !important; box-shadow: 4px 0 20px rgba(44,36,22,0.15); }
  .nav-overlay.open { display: block; }
  .app-content { width: 100%; }
  header { padding: 14px 16px 12px; }
- .view-inner { padding: 20px; }
+ .view-inner { padding: 16px 12px; }
  .nav-flyout {
   padding: 2px 0 4px 8px;
  }
  .nav-tab-parent:hover > .nav-flyout { display: none; }
  .nav-tab-parent.open > .nav-flyout { display: block; }
+ .home-hero-grid { grid-template-columns: 1fr !important; }
+
+ /* ── MOBILE: Cal nav ── */
+ .cal-nav { flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 14px; }
+ .cal-nav-title { font-size: 1.2rem; }
+ .cal-nav-btns { flex-wrap: wrap; gap: 6px; }
+ .cal-nav-btn { font-size: 0.68rem; padding: 5px 12px; }
+
+ /* ── MOBILE: Week view → vertical stack like Google Calendar ── */
+ .week-cols {
+  flex-direction: column !important;
+  gap: 0 !important;
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--border-soft);
+ }
+ .day-col {
+  min-height: auto !important; border-radius: 0 !important;
+  border-left: none !important; border-right: none !important;
+  border-bottom: none !important;
+  border-top: 1px solid var(--border-soft) !important;
+  padding: 24px 16px !important;
+  display: flex; flex-direction: row; flex-wrap: wrap;
+  align-items: flex-start; gap: 8px;
+ }
+ .day-col:first-child { border-top: none !important; }
+ .day-col.today {
+  flex: unset !important; padding: 26px 16px !important;
+  box-shadow: none !important;
+  border-left: 3px solid var(--terra) !important;
+  border-radius: 0 !important;
+  background: var(--terra-soft) !important;
+ }
+ .day-col.weekend {
+  flex: unset !important; opacity: 0.75;
+  background: var(--linen) !important;
+ }
+ .day-col-header {
+  margin-bottom: 0 !important;
+  min-width: 54px; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: flex-start;
+ }
+ .day-col-name { font-size: 0.7rem !important; }
+ .day-col-date { font-size: 1.1rem !important; }
+ .day-col.today .day-col-name { font-size: 0.75rem !important; }
+ .day-col.today .day-col-date { font-size: 1.3rem !important; }
+ .day-col.weekend .day-col-name { font-size: 0.65rem !important; }
+ .day-col.weekend .day-col-date { font-size: 0.95rem !important; }
+ .day-today-tag { font-size: 0.5rem; }
+
+ /* Tasks flow next to the date header */
+ .day-col-content {
+  flex: 1; min-width: 0;
+ }
+ .week-task { font-size: 0.7rem !important; padding: 5px 8px !important; margin-bottom: 3px; }
+ .week-task-check-big { width: 18px !important; height: 18px !important; }
+ .week-appt { font-size: 0.68rem !important; padding: 4px 8px !important; }
+ .cal-event { font-size: 0.68rem !important; padding: 4px 8px !important; }
+
+ /* Quick wins tray */
+ .week-qw-tray { padding: 12px 14px; border-radius: 14px; margin-top: 14px; }
+ .week-qw-chip { font-size: 0.68rem; padding: 5px 10px; }
+
+ /* ── MOBILE: Month view → full month visible with dots ── */
+ .month-grid { gap: 1px; }
+ .month-header-day { font-size: 0.5rem; padding: 3px 1px; letter-spacing: 0.02em; }
+ .month-cell {
+  min-height: 38px !important; max-height: 60px !important;
+  padding: 3px 3px !important;
+  border-radius: 4px !important;
+  overflow: hidden;
+ }
+ .month-date { font-size: 0.65rem !important; margin-bottom: 1px; line-height: 1; }
+ 
+ /* Hide full task text, show coloured dots instead */
+ .month-task-dot {
+  font-size: 0 !important; padding: 0 !important;
+  border-radius: 50% !important; margin: 1px !important;
+  width: 6px !important; height: 6px !important;
+  display: inline-block !important; border-left: none !important;
+  overflow: hidden; line-height: 0 !important;
+  vertical-align: middle;
+ }
+ .month-task-dot * { display: none !important; }
+ .month-task-dot-check { display: none !important; }
+ 
+ /* Hide appointment text, show dots */
+ .month-appt-dot {
+  font-size: 0 !important; padding: 0 !important;
+  border-radius: 50% !important; margin: 1px !important;
+  width: 6px !important; height: 6px !important;
+  display: inline-block !important;
+  background: var(--terra) !important;
+  border-left: none !important;
+  overflow: hidden; line-height: 0 !important;
+  vertical-align: middle;
+ }
+ .month-appt-dot * { display: none !important; }
+ 
+ .month-more { display: none !important; }
+ .month-more-tasks { display: none !important; }
 }
 
 /* ── MODAL OVERLAY ── */
@@ -508,6 +622,7 @@ nav:hover, nav.nav-open {
 .day-col.today .week-task { font-size: 0.78rem; padding: 8px 11px; }
 .day-col.drop-over { border-color: var(--terra); background: var(--terra-soft); transform: scale(1.02); }
 .day-col-header { margin-bottom: 14px; }
+.day-col-content { flex: 1; min-width: 0; }
 .day-col-name { font-family: 'Cormorant Garamond', serif; font-size: 1rem; font-style: italic; color: var(--ink-soft); }
 .day-col-date { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 300; color: var(--ink); line-height: 1; }
 .day-col.today .day-col-date { color: var(--terra); }
@@ -2577,6 +2692,8 @@ nav:hover, nav.nav-open {
 <div class="view" id="view-settings">
  <div class="view-inner" style="padding:40px">
 
+ <div style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-style:italic;font-weight:400;margin-bottom:16px">Settings</div>
+
  <div class="settings-section">
  <div class="settings-section-title">Task types</div>
  <div class="settings-section-desc">Colour-code your tasks by client or category. Click any type to edit it.</div>
@@ -2906,8 +3023,22 @@ function updateCalToggleLabel() {
 function toggleSidebar() {
   var nav = document.getElementById('sidebar-nav');
   var overlay = document.getElementById('nav-overlay');
-  if (nav) nav.classList.toggle('open');
+  var isOpen = nav && (nav.classList.contains('open') || nav.classList.contains('nav-open'));
+  if (nav) { nav.classList.toggle('open'); nav.classList.toggle('nav-open'); }
   if (overlay) overlay.classList.toggle('open');
+}
+
+function mobileNav(viewId) {
+ // Switch view
+ sidebarNav(viewId, null);
+ if (viewId === 'week') setCalViewDirect('week');
+ // Update active state on bottom nav
+ document.querySelectorAll('.mobile-nav-btn').forEach(function(b){ b.classList.remove('active'); });
+ var mapping = { 'focus': 'mob-nav-home', 'week': 'mob-nav-week', 'all': 'mob-nav-tasks', 'health': 'mob-nav-health' };
+ var activeBtn = document.getElementById(mapping[viewId]);
+ if (activeBtn) activeBtn.classList.add('active');
+ // Scroll to top
+ window.scrollTo(0, 0);
 }
 
 function showView(id, btn) {
@@ -2917,6 +3048,11 @@ function showView(id, btn) {
  if (viewEl) viewEl.classList.add('active');
  if (btn) btn.classList.add('active');
  document.getElementById('view-toggle').style.display = id==='week' ? 'flex' : 'none';
+ // Close mobile sidebar
+ var nav = document.getElementById('sidebar-nav');
+ if (nav) { nav.classList.remove('open'); nav.classList.remove('nav-open'); }
+ var overlay = document.getElementById('nav-overlay');
+ if (overlay) overlay.classList.remove('open');
  renderAll();
 }
 
@@ -4150,6 +4286,7 @@ function renderCal() {
  <div class="day-col-date">${d.getDate()}</div>
  ${isToday?`<div class="day-today-tag">Today</div>`:''}
  </div>
+ <div class="day-col-content">
  ${events.length>0?`<div class="day-divider">Calendar</div>`:''}
  ${events.map(ev=>`<div class="cal-event"><div class="cal-event-time">${ev.time}</div><div class="cal-event-title">${ev.title}</div></div>`).join('')}
  ${ (function(){
@@ -4168,8 +4305,10 @@ function renderCal() {
  +'</div>';
  }).join('') }
  ${(events.length>0||appointments.filter(function(a){return a.date===dk}).length>0)&&dayTasks.length>0?'<div class="day-divider">Tasks</div>':''}
- ${dayTasks.length===0&&events.length===0&&appointments.filter(function(a){return a.date===dk}).length===0?'<div class="day-empty-msg">Free</div>':''}`;
+ ${dayTasks.length===0&&events.length===0&&appointments.filter(function(a){return a.date===dk}).length===0?'<div class="day-empty-msg">Free</div>':''}
+ </div>`;
 
+ var contentDiv = col.querySelector('.day-col-content');
  dayTasks.forEach(t=>{
  const ty=getType(t.type);
  const el=document.createElement('div');
@@ -4188,7 +4327,8 @@ function renderCal() {
  </div>`;
  el.addEventListener('dragstart',e=>onDragStart(e,t.id));
  el.addEventListener('dragend',onDragEnd);
- col.appendChild(el);
+ if (contentDiv) contentDiv.appendChild(el);
+ else col.appendChild(el);
  });
 
  cols.appendChild(col);
@@ -4985,7 +5125,7 @@ function renderProjects() {
  ` : ''}
 
  <div class="project-save-row">
- <button class="btn-project-save" onclick="saveProjects();showFlash('Project saved ')">Save project</button>
+ <button class="btn-project-save" onclick="saveProjects();activeProjectId=null;renderProjects();showFlash('Project saved ✓')">Save & close</button>
  <div style="display:flex;gap:8px">
  <button class="btn-project-delete" onclick="archiveProject(${p.id})">${p.archived?'Unarchive':'Archive'}</button>
  <button class="btn-project-delete" style="border-color:var(--blush);color:var(--blush)" onclick="deleteProject(${p.id})">Delete</button>
@@ -5316,6 +5456,7 @@ async function saveDeadline() {
  await injectDeadlineTasks(obj);
 
  saveDeadlines(); renderDeadlines(); closeModal('deadline-modal');
+ showFlash('Deadline saved ✓');
 }
 
 async function injectDeadlineTasks(dl) {
@@ -5494,7 +5635,7 @@ function renderDeadlines() {
  + (activeBigTaskTab==='tasks' ? '<div class="project-tasks-list">' + localTasks.map(function(t){ var mainTask=tasks.find(function(mt){return mt.bigTaskLocalId===t.id&&mt.deadlineId===dl.id}); var onBoard=!!mainTask; var boardStatus=onBoard?(mainTask.done?'\u2713 Done':'On board'):''; return '<div class="project-task-row"><button class="project-task-check '+(t.done?'done-check':'')+'" onclick="toggleBigTaskLocalTask('+dl.id+','+t.id+', event)">'+(t.done?'\u2713':'')+'</button><div class="project-task-title '+(t.done?'done-title':'')+'">' + t.title + '</div>'+(onBoard?'<span class="proj-task-on-board">'+boardStatus+'</span>':'<button class="btn-add-to-main" onclick="bigTaskLocalToMain('+dl.id+','+t.id+')">\u2192 Main board</button>')+'<button class="project-task-del" onclick="deleteBigTaskLocalTask('+dl.id+','+t.id+')">\u2715</button></div>';}).join('') + '</div><div class="project-add-task-row"><input class="project-add-task-input" id="bt-task-input-'+dl.id+'" placeholder="Add a task\u2026" onkeydown="if(event.key===\'Enter\')addBigTaskLocalTask('+dl.id+')"><button class="btn-project-add-task" onclick="addBigTaskLocalTask('+dl.id+')">Add</button></div>' + (mainBoardTasks.length>0?'<p style="font-size:0.7rem;color:var(--ink-muted);margin-top:12px;font-style:italic">'+mainBoardTasks.length+' task(s) from this big task also on your main board.</p>':'') : '')
  + (activeBigTaskTab==='links' ? '<div class="project-links-area">' + (dl.links||[]).map(function(l,i){return '<div class="project-link-display"><a href="'+l+'" target="_blank" rel="noopener">'+(l||'(empty)')+'</a><button class="btn-del-link" onclick="deleteBigTaskLink('+dl.id+','+i+')">\u2715</button></div>'}).join('') + '</div><button class="btn-add-link" onclick="addBigTaskLink('+dl.id+')">+ Add link</button>' : '')
  + (activeBigTaskTab==='images' ? '<div class="project-images-grid">' + (dl.images||[]).map(function(img,i){return '<div class="project-img-wrap"><img class="project-img-thumb" src="'+img+'" onclick="openLightbox(\''+img+'\')"><button class="project-img-del" onclick="deleteBigTaskImage('+dl.id+','+i+')">\u2715</button></div>'}).join('') + '<label class="project-img-upload" title="Add image"><input type="file" accept="image/*" style="display:none" onchange="addBigTaskImage('+dl.id+',event)">+</label></div>' : '')
- + '<div class="project-save-row"><button class="btn-project-save" onclick="saveDeadlines();showFlash(\'Saved \u2714\')">Save</button><div style="display:flex;gap:8px"><button class="btn-project-delete" onclick="openDeadlineModal('+dl.id+')">Edit deadline details</button><button class="btn-project-delete" style="border-color:var(--blush);color:var(--blush)" onclick="deleteBigTask('+dl.id+')">Delete</button></div></div></div>';
+ + '<div class="project-save-row"><button class="btn-project-save" onclick="saveDeadlines();activeBigTaskId=null;renderDeadlines();showFlash(\'Big task saved \u2714\')">Save & close</button><div style="display:flex;gap:8px"><button class="btn-project-delete" onclick="openDeadlineModal('+dl.id+')">Edit deadline details</button><button class="btn-project-delete" style="border-color:var(--blush);color:var(--blush)" onclick="deleteBigTask('+dl.id+')">Delete</button></div></div></div>';
 
  if (activeBigTaskTab === 'notes') renderBigTaskEntries(dl.id);
 }
