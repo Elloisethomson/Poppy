@@ -7552,27 +7552,22 @@ async function syncCreateNew() {
  try {
   var allData = gatherSyncData();
   var payload = JSON.stringify({ data: allData, updated: Date.now() });
-  var resp = await fetch('https://jsonblob.com/api/jsonBlob', {
+  var resp = await fetch('https://api.npoint.io', {
    method: 'POST',
-   headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+   headers: { 'Content-Type': 'application/json' },
    body: payload
   });
-  if (!resp.ok) throw new Error('Failed to create sync (' + resp.status + ')');
-  var location = resp.headers.get('Location') || resp.headers.get('location');
-  var blobId = location ? location.split('/').pop() : null;
-  if (!blobId) {
-   // Try to get from response URL
-   var url = resp.url || '';
-   blobId = url.split('/').pop();
-  }
-  if (!blobId) throw new Error('Could not get sync ID');
-  SYNC_BIN_ID = blobId;
+  if (!resp.ok) throw new Error('Server error: ' + resp.status);
+  var result = await resp.json();
+  if (!result || !result.id) throw new Error('No ID returned');
+  SYNC_BIN_ID = result.id;
   localStorage.setItem('poppy-sync-bin-id', SYNC_BIN_ID);
   localStorage.setItem('poppy-sync-last', String(Date.now()));
   renderSyncStatus();
   showFlash('Sync created! Copy your sync key from Settings to link other devices.');
  } catch(err) {
   showFlash('Sync setup failed: ' + err.message);
+  console.error('Sync create error:', err);
  }
  btn.textContent = 'Create sync key (new setup)'; btn.disabled = false;
 }
@@ -7582,10 +7577,10 @@ async function syncLinkExisting() {
  var binId = input.value.trim();
  if (!binId) return;
  try {
-  var resp = await fetch('https://jsonblob.com/api/jsonBlob/' + binId);
+  var resp = await fetch('https://api.npoint.io/' + binId);
   if (!resp.ok) throw new Error('Invalid sync key');
   var result = await resp.json();
-  if (!result.data) throw new Error('No data found');
+  if (!result || !result.data) throw new Error('No data found');
   SYNC_BIN_ID = binId;
   localStorage.setItem('poppy-sync-bin-id', SYNC_BIN_ID);
   await syncPull();
@@ -7612,8 +7607,8 @@ async function syncPush() {
  syncInProgress = true;
  try {
   var allData = gatherSyncData();
-  var resp = await fetch('https://jsonblob.com/api/jsonBlob/' + SYNC_BIN_ID, {
-   method: 'PUT',
+  var resp = await fetch('https://api.npoint.io/' + SYNC_BIN_ID, {
+   method: 'POST',
    headers: { 'Content-Type': 'application/json' },
    body: JSON.stringify({ data: allData, updated: Date.now() })
   });
@@ -7631,7 +7626,7 @@ async function syncPull() {
  if (!SYNC_BIN_ID || syncInProgress) return;
  syncInProgress = true;
  try {
-  var resp = await fetch('https://jsonblob.com/api/jsonBlob/' + SYNC_BIN_ID);
+  var resp = await fetch('https://api.npoint.io/' + SYNC_BIN_ID);
   if (!resp.ok) throw new Error('Fetch failed');
   var result = await resp.json();
   if (result && result.data) {
