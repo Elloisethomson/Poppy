@@ -2725,7 +2725,8 @@ nav.nav-open, nav.open, nav:hover {
  <div id="sync-status"></div>
  <div id="sync-setup" style="margin-top:10px">
   <div style="display:flex;gap:8px;flex-wrap:wrap">
-   <button class="btn-settings-action" onclick="syncCreateNew()" id="sync-create-btn">Create sync key (new setup)</button>
+   <button class="btn-settings-action" onclick="try{syncCreateNew()}catch(e){alert('Error: '+e.message)}" id="sync-create-btn">Create sync key (new setup)</button>
+   <button class="btn-settings-action" onclick="alert('JS works! syncCreateNew is: ' + typeof syncCreateNew)" style="background:var(--terra);color:white">Test JS</button>
    <button class="btn-settings-action" onclick="document.getElementById('sync-link-area').style.display='flex'">Link to existing device</button>
   </div>
   <div id="sync-link-area" style="display:none;gap:8px;align-items:center;margin-top:10px">
