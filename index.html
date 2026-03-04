@@ -7543,25 +7543,30 @@ function importData(event) {
 
 // ══ CLOUD SYNC ══
 var SYNC_BIN_ID = localStorage.getItem('poppy-sync-bin-id') || null;
-var SYNC_API = 'https://api.jsonbin.io/v3';
-var SYNC_KEY = '$2a$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // free tier master key placeholder
 var syncInProgress = false;
 var lastSyncTime = parseInt(localStorage.getItem('poppy-sync-last') || '0');
 
-// Use jsonbin.io free tier — no API key needed for public bins
 async function syncCreateNew() {
  var btn = document.getElementById('sync-create-btn');
  btn.textContent = 'Creating…'; btn.disabled = true;
  try {
   var allData = gatherSyncData();
-  var resp = await fetch('https://api.jsonbin.io/v3/b', {
+  var payload = JSON.stringify({ data: allData, updated: Date.now() });
+  var resp = await fetch('https://jsonblob.com/api/jsonBlob', {
    method: 'POST',
-   headers: { 'Content-Type': 'application/json', 'X-Bin-Private': 'false' },
-   body: JSON.stringify({ data: allData, updated: Date.now() })
+   headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+   body: payload
   });
-  var result = await resp.json();
-  if (!result.metadata?.id) throw new Error('Failed to create bin');
-  SYNC_BIN_ID = result.metadata.id;
+  if (!resp.ok) throw new Error('Failed to create sync (' + resp.status + ')');
+  var location = resp.headers.get('Location') || resp.headers.get('location');
+  var blobId = location ? location.split('/').pop() : null;
+  if (!blobId) {
+   // Try to get from response URL
+   var url = resp.url || '';
+   blobId = url.split('/').pop();
+  }
+  if (!blobId) throw new Error('Could not get sync ID');
+  SYNC_BIN_ID = blobId;
   localStorage.setItem('poppy-sync-bin-id', SYNC_BIN_ID);
   localStorage.setItem('poppy-sync-last', String(Date.now()));
   renderSyncStatus();
@@ -7577,13 +7582,12 @@ async function syncLinkExisting() {
  var binId = input.value.trim();
  if (!binId) return;
  try {
-  // Test that the bin exists by fetching it
-  var resp = await fetch('https://api.jsonbin.io/v3/b/' + binId + '/latest');
+  var resp = await fetch('https://jsonblob.com/api/jsonBlob/' + binId);
+  if (!resp.ok) throw new Error('Invalid sync key');
   var result = await resp.json();
-  if (!result.record) throw new Error('Invalid sync key');
+  if (!result.data) throw new Error('No data found');
   SYNC_BIN_ID = binId;
   localStorage.setItem('poppy-sync-bin-id', SYNC_BIN_ID);
-  // Pull data from cloud
   await syncPull();
   renderSyncStatus();
   showFlash('Linked! Your data has been synced from the cloud.');
@@ -7608,13 +7612,15 @@ async function syncPush() {
  syncInProgress = true;
  try {
   var allData = gatherSyncData();
-  await fetch('https://api.jsonbin.io/v3/b/' + SYNC_BIN_ID, {
+  var resp = await fetch('https://jsonblob.com/api/jsonBlob/' + SYNC_BIN_ID, {
    method: 'PUT',
    headers: { 'Content-Type': 'application/json' },
    body: JSON.stringify({ data: allData, updated: Date.now() })
   });
-  localStorage.setItem('poppy-sync-last', String(Date.now()));
-  lastSyncTime = Date.now();
+  if (resp.ok) {
+   localStorage.setItem('poppy-sync-last', String(Date.now()));
+   lastSyncTime = Date.now();
+  }
  } catch(err) {
   console.warn('Sync push failed:', err);
  }
@@ -7625,20 +7631,20 @@ async function syncPull() {
  if (!SYNC_BIN_ID || syncInProgress) return;
  syncInProgress = true;
  try {
-  var resp = await fetch('https://api.jsonbin.io/v3/b/' + SYNC_BIN_ID + '/latest');
+  var resp = await fetch('https://jsonblob.com/api/jsonBlob/' + SYNC_BIN_ID);
+  if (!resp.ok) throw new Error('Fetch failed');
   var result = await resp.json();
-  if (result.record && result.record.data) {
-   var cloudData = result.record.data;
-   var cloudTime = result.record.updated || 0;
+  if (result && result.data) {
+   var cloudData = result.data;
+   var cloudTime = result.updated || 0;
    var localTime = lastSyncTime;
-   // Only overwrite if cloud is newer
    if (cloudTime > localTime) {
     for (var key in cloudData) {
      if (key.startsWith('poppy-')) localStorage.setItem(key, cloudData[key]);
     }
     localStorage.setItem('poppy-sync-last', String(Date.now()));
     lastSyncTime = Date.now();
-    location.reload(); // reload to pick up new data
+    location.reload();
     return;
    }
   }
