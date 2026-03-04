@@ -2726,7 +2726,7 @@ nav.nav-open, nav.open, nav:hover {
  <div id="sync-setup" style="margin-top:10px">
   <div style="display:flex;gap:8px;flex-wrap:wrap">
    <button class="btn-settings-action" onclick="syncCreateNew()" id="sync-create-btn">Create sync key (new setup)</button>
-   <button class="btn-settings-action" onclick="document.getElementById('sync-link-area').style.display='flex'" id="sync-link-btn">Link to existing device</button>
+   <button class="btn-settings-action" onclick="document.getElementById('sync-link-area').style.display='flex'">Link to existing device</button>
   </div>
   <div id="sync-link-area" style="display:none;gap:8px;align-items:center;margin-top:10px">
    <input type="text" id="sync-key-input" placeholder="Paste your sync key…" style="flex:1;font-family:'Jost',sans-serif;font-size:0.8rem;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:var(--parchment);outline:none">
@@ -7541,8 +7541,9 @@ function importData(event) {
   reader.readAsText(file);
 }
 
-// ══ CLOUD SYNC ══
+// ══ CLOUD SYNC via JSONBin.io ══
 var SYNC_BIN_ID = localStorage.getItem('poppy-sync-bin-id') || null;
+var SYNC_MASTER_KEY = '$2a$10$UtmV8cks6BwvGzD8Jm1yNuAxJw.uuVoeTn0okfYALCvSCh9gw1Gp2';
 var syncInProgress = false;
 var lastSyncTime = parseInt(localStorage.getItem('poppy-sync-last') || '0');
 
@@ -7552,22 +7553,37 @@ async function syncCreateNew() {
  try {
   var allData = gatherSyncData();
   var payload = JSON.stringify({ data: allData, updated: Date.now() });
-  var resp = await fetch('https://api.npoint.io', {
+  
+  var resp = await fetch('https://api.jsonbin.io/v3/b', {
    method: 'POST',
-   headers: { 'Content-Type': 'application/json' },
+   headers: {
+    'Content-Type': 'application/json',
+    'X-Master-Key': SYNC_MASTER_KEY,
+    'X-Bin-Private': 'false',
+    'X-Bin-Name': 'poppy-sync'
+   },
    body: payload
   });
-  if (!resp.ok) throw new Error('Server error: ' + resp.status);
-  var result = await resp.json();
-  if (!result || !result.id) throw new Error('No ID returned');
-  SYNC_BIN_ID = result.id;
+  
+  var text = await resp.text();
+  var result;
+  try { result = JSON.parse(text); } catch(e) { throw new Error('Bad response: ' + text.substring(0,100)); }
+  
+  if (!resp.ok) throw new Error(result.message || 'Server error ' + resp.status);
+  var binId = result.metadata && result.metadata.id;
+  if (!binId) throw new Error('No bin ID returned');
+  SYNC_BIN_ID = binId;
   localStorage.setItem('poppy-sync-bin-id', SYNC_BIN_ID);
   localStorage.setItem('poppy-sync-last', String(Date.now()));
+  lastSyncTime = Date.now();
   renderSyncStatus();
-  showFlash('Sync created! Copy your sync key from Settings to link other devices.');
+  showFlash('Sync created! Copy your sync key to link other devices.');
  } catch(err) {
-  showFlash('Sync setup failed: ' + err.message);
+  showFlash('Sync failed: ' + err.message);
   console.error('Sync create error:', err);
+  // Show error visually
+  var el = document.getElementById('sync-status');
+  if (el) el.innerHTML = '<div style="font-size:0.7rem;color:#EF4444;margin-top:8px">Error: ' + err.message + '</div>';
  }
  btn.textContent = 'Create sync key (new setup)'; btn.disabled = false;
 }
@@ -7577,15 +7593,23 @@ async function syncLinkExisting() {
  var binId = input.value.trim();
  if (!binId) return;
  try {
-  var resp = await fetch('https://api.npoint.io/' + binId);
-  if (!resp.ok) throw new Error('Invalid sync key');
+  var resp = await fetch('https://api.jsonbin.io/v3/b/' + binId + '/latest', {
+   headers: { 'X-Master-Key': SYNC_MASTER_KEY }
+  });
   var result = await resp.json();
-  if (!result || !result.data) throw new Error('No data found');
+  if (!resp.ok) throw new Error(result.message || 'Invalid key');
+  if (!result.record || !result.record.data) throw new Error('No data found');
   SYNC_BIN_ID = binId;
   localStorage.setItem('poppy-sync-bin-id', SYNC_BIN_ID);
-  await syncPull();
-  renderSyncStatus();
-  showFlash('Linked! Your data has been synced from the cloud.');
+  // Import data
+  var cloudData = result.record.data;
+  for (var key in cloudData) {
+   if (key.startsWith('poppy-')) localStorage.setItem(key, cloudData[key]);
+  }
+  localStorage.setItem('poppy-sync-last', String(Date.now()));
+  lastSyncTime = Date.now();
+  showFlash('Linked! Reloading with synced data…');
+  setTimeout(function(){ location.reload(); }, 1000);
  } catch(err) {
   showFlash('Could not link: ' + err.message);
  }
@@ -7607,9 +7631,12 @@ async function syncPush() {
  syncInProgress = true;
  try {
   var allData = gatherSyncData();
-  var resp = await fetch('https://api.npoint.io/' + SYNC_BIN_ID, {
-   method: 'POST',
-   headers: { 'Content-Type': 'application/json' },
+  var resp = await fetch('https://api.jsonbin.io/v3/b/' + SYNC_BIN_ID, {
+   method: 'PUT',
+   headers: {
+    'Content-Type': 'application/json',
+    'X-Master-Key': SYNC_MASTER_KEY
+   },
    body: JSON.stringify({ data: allData, updated: Date.now() })
   });
   if (resp.ok) {
@@ -7626,12 +7653,13 @@ async function syncPull() {
  if (!SYNC_BIN_ID || syncInProgress) return;
  syncInProgress = true;
  try {
-  var resp = await fetch('https://api.npoint.io/' + SYNC_BIN_ID);
-  if (!resp.ok) throw new Error('Fetch failed');
+  var resp = await fetch('https://api.jsonbin.io/v3/b/' + SYNC_BIN_ID + '/latest', {
+   headers: { 'X-Master-Key': SYNC_MASTER_KEY }
+  });
   var result = await resp.json();
-  if (result && result.data) {
-   var cloudData = result.data;
-   var cloudTime = result.updated || 0;
+  if (result.record && result.record.data) {
+   var cloudData = result.record.data;
+   var cloudTime = result.record.updated || 0;
    var localTime = lastSyncTime;
    if (cloudTime > localTime) {
     for (var key in cloudData) {
@@ -7663,22 +7691,22 @@ function renderSyncStatus() {
  if (!el) return;
  if (SYNC_BIN_ID) {
   var ago = lastSyncTime ? timeSince(lastSyncTime) : 'never';
-  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--linen);border:1px solid var(--border);border-radius:12px">'
+  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--linen);border:1px solid var(--border);border-radius:12px;margin-top:10px">'
    + '<div style="width:8px;height:8px;border-radius:50%;background:#22C55E;flex-shrink:0"></div>'
    + '<div style="flex:1"><div style="font-size:0.78rem;font-weight:400;color:var(--ink)">Sync active</div>'
    + '<div style="font-size:0.65rem;color:var(--ink-muted)">Last synced: ' + ago + '</div></div>'
-   + '<button onclick="syncPush();showFlash(\'Syncing…\')" style="font-family:\'Jost\',sans-serif;font-size:0.65rem;padding:5px 12px;border-radius:14px;border:1px solid var(--border);background:none;color:var(--ink-muted);cursor:pointer">Sync now</button>'
+   + '<button onclick="syncPush().then(function(){showFlash(\'Synced!\')})" style="font-family:\'Jost\',sans-serif;font-size:0.65rem;padding:5px 12px;border-radius:14px;border:1px solid var(--border);background:none;color:var(--ink-muted);cursor:pointer">Sync now</button>'
    + '</div>'
    + '<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
    + '<div style="font-size:0.65rem;color:var(--ink-muted)">Sync key:</div>'
-   + '<code style="font-size:0.7rem;padding:4px 10px;background:var(--parchment);border:1px solid var(--border);border-radius:6px;user-select:all;cursor:text">' + SYNC_BIN_ID + '</code>'
+   + '<code style="font-size:0.7rem;padding:4px 10px;background:var(--parchment);border:1px solid var(--border);border-radius:6px;user-select:all;cursor:text;word-break:break-all">' + SYNC_BIN_ID + '</code>'
    + '<button onclick="navigator.clipboard.writeText(\'' + SYNC_BIN_ID + '\');showFlash(\'Copied!\')" style="font-family:\'Jost\',sans-serif;font-size:0.6rem;padding:3px 10px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--ink-muted);cursor:pointer">Copy</button>'
-   + '<button onclick="syncDisconnect()" style="font-family:\'Jost\',sans-serif;font-size:0.6rem;padding:3px 10px;border-radius:10px;border:1px solid var(--blush);background:none;color:var(--blush);cursor:pointer;margin-left:auto">Disconnect</button>'
-   + '</div>';
-  setup.style.display = 'none';
+   + '</div>'
+   + '<button onclick="syncDisconnect()" style="font-family:\'Jost\',sans-serif;font-size:0.6rem;padding:3px 10px;border-radius:10px;border:1px solid var(--blush);background:none;color:var(--blush);cursor:pointer;margin-top:8px">Disconnect</button>';
+  if (setup) setup.style.display = 'none';
  } else {
   el.innerHTML = '<div style="font-size:0.72rem;color:var(--ink-muted);font-style:italic">Not connected</div>';
-  setup.style.display = 'block';
+  if (setup) setup.style.display = 'block';
  }
 }
 
